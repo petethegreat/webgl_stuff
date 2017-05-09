@@ -1,0 +1,22 @@
+in the body - define a canvas
+
+start web gl 
+- get a handle to the canvas
+- initialise canvas for webgl
+ - initialise shaders
+ - initialise buffers
+
+
+
+Shaders
+ - fragment shader and vertex shader
+ - create a ShaderProgram - attach the vertex shader and fragment shader to this program
+ -tell webgl to use this program
+ shaders use matrices (?)
+ 
+ 
+ 
+
+
+define buffers - describe vertices of the shapes
+

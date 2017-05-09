@@ -1,0 +1,10 @@
+cube notes.
+
+have a piece class, with centre, edge, and corner instances
+should specify: 
+vertices - of a single piece
+how many pieces of that type
+an array of color buffers
+an array of positions
+an array of rotations/orientations
+a draw method

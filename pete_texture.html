@@ -1,0 +1,474 @@
+<html>
+
+<head>
+<title>Pete's WebGL</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+
+    varying vec4 vColor;
+    varying vec2 vTextureCoord;
+
+    uniform sampler2D uSampler;
+
+
+    void main(void) {
+        //gl_FragColor = vColor;
+	gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s,vTextureCoord.t));
+    }
+   
+
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+    attribute vec2 aTextureCoord;
+    varying vec4 vColor;
+    varying vec2 vTextureCoord;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+	//vColor = aVertexColor;
+	vTextureCoord = aTextureCoord;
+    }
+</script>
+
+
+<script type="text/javascript">
+var PI = 3.141592653;
+var RT3 = 1.7320508;
+var RT2 = 1.4142136;
+
+<!--functions go in here
+
+-->
+
+
+
+  
+  
+<!-- sort out the canvas for webgl-->
+var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) { 
+	alert("some sort of error with webgl");
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL");
+        }
+    }
+
+<!-- shader stuff -->
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+<!-- firt thing called by WebGLstart - sorts out the shaders -->
+var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+        //shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        //gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+    
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+	 
+	shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+        gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+	//
+
+
+
+
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+        shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
+
+    }
+
+ <!-- Texture stuff -->
+     function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+ 
+var EveTexture;
+
+    function initTexture() {
+        EveTexture = gl.createTexture();
+        EveTexture.image = new Image();
+        EveTexture.image.onload = function () {
+            handleLoadedTexture(EveTexture)
+        }
+
+        EveTexture.image.src = "eve-logo2.gif";
+    }
+
+
+
+<!-- push and pop - mvMatrix stack -->
+ var mvMatrix = mat4.create();
+  var mvMatrixStack = [];
+  var pMatrix = mat4.create();
+
+  function mvPushMatrix() {
+    var copy = mat4.create();
+    mat4.set(mvMatrix, copy);
+    mvMatrixStack.push(copy);
+  }
+
+  function mvPopMatrix() {
+    if (mvMatrixStack.length == 0) {
+      throw "Invalid popMatrix!";
+    }
+    mvMatrix = mvMatrixStack.pop();
+  }
+
+
+
+
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+
+
+
+
+
+<!-- buffers - describe the shapes -->
+
+ var triangleVertexPositionBuffer;
+ var peteVertexPositionBuffer;   <!-- front face -->
+ var triangleVertexColorBuffer;
+ var peteVertexColorBuffer;
+ var peteVertexIndexBuffer; 
+ var peteVertexTextureCoordBuffer;
+ 
+ 
+
+    function initBuffers() {
+        <!-- triangle -->
+        triangleVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        var vertices = [
+             -0.5,  0.0,  1/2/RT3,
+            0.5, 0.0,  1/2/RT3,
+             0.0,   RT2/RT3, 0.0,
+	     0.0,0.0,-1/RT3,
+	     -0.5,  0.0,  1/2/RT3,
+	     0.5, 0.0,  1/2/RT3
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        triangleVertexPositionBuffer.itemSize = 3;
+        triangleVertexPositionBuffer.numItems = 6;
+	
+	var colors = [] ;
+	for (var i=0; i < 14; i++) {
+            colors = colors.concat([(vertices[3*i]+0.5)*0.4, 0.9,(vertices[3*i+2]+1/RT3)*2/RT3*0.4  , 1.0]);
+        }
+
+	
+	
+	triangleVertexColorBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+        triangleVertexColorBuffer.itemSize = 4;
+        triangleVertexColorBuffer.numItems = 6;
+	
+	
+	<!--Cube -->
+        peteVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, peteVertexPositionBuffer);
+        vertices = [
+             // front
+	     0.0, 1.0, 0.5,
+	     0.0, 0.0, 0.5,
+	     1.0, 1.0, 0.5,
+	     1.0, 0.0, 0.5,
+	     
+	     // rear
+	     
+	     1.0, 1.0, -0.5,
+	     1.0, 0.0, -0.5,
+	     0.0, 1.0, -0.5,
+	     0.0, 0.0, -0.5,	     
+	     
+
+
+	        
+        ];
+	
+
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        peteVertexPositionBuffer.itemSize = 3;
+        peteVertexPositionBuffer.numItems = 8;
+	
+	peteVertexColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, peteVertexColorBuffer);
+        colors = [];
+	for (var i=0; i < 8; i++) {
+            colors = colors.concat([(vertices[3*i]+1)/4, (vertices[3*i+1] +3)/6, 0.5 + vertices[3*i+2]/2 , 1.0]);
+        }
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+        peteVertexColorBuffer.itemSize = 4;
+        peteVertexColorBuffer.numItems = 8;
+	
+	
+	peteVertexTextureCoordBuffer = gl.createBuffer();
+	var texCoords =
+	[
+	0.0,1.0,
+	0.0,0.0,
+	1.0,1.0,
+	1.0,0.0,
+	
+	0.0,1.0,
+	0.0,0.0,
+	1.0,1.0,
+	1.0,0.0
+	
+	
+	
+	]
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, peteVertexTextureCoordBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+	
+	peteVertexTextureCoordBuffer.itemSize = 2;
+     peteVertexTextureCoordBuffer.numItems = 8;  
+	
+	
+       //index buffer
+       
+  peteVertexIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,peteVertexIndexBuffer);
+  var Pindices =
+  [
+  0,1,2,
+  2,3,1,
+  
+  0,1,7,
+  7,6,0,
+  
+  2,4,5,
+  5,3,2,
+  
+  4,5,6,
+  6,7,5
+     
+  
+  ]
+       
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(Pindices), gl.STATIC_DRAW); 
+    peteVertexIndexBuffer.itemSize = 1;
+    peteVertexIndexBuffer.numItems = 24;  
+       
+
+    }
+
+ <!-- Animate the scene -->
+var rTri = 0;
+var rSquare =0;
+var lastTime = 0;
+
+  function animate() {
+    var timeNow = new Date().getTime();
+    if (lastTime != 0) {
+      var elapsed = timeNow - lastTime;
+
+      rTri += ( 0.75 * elapsed) / 1000.0;
+      rSquare += (0.325* elapsed) / 1000.0;
+      
+      if (rTri > 2*PI ) {rTri -= 2*PI;};
+      if (rSquare > 2*PI ) {rSquare -= 2*PI;}; 
+    }
+    lastTime = timeNow;
+  } 
+  
+<!-- draw the scene -->
+
+
+
+
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+
+        mat4.identity(mvMatrix);
+	
+ 	
+        mat4.translate(mvMatrix, [0.0, -0.5, -2.0]);
+	<!-- this is our default viewpoint-->
+	mvPushMatrix();
+	<!-- rotated frame of the triangle -->
+	//mat4.rotate(mvMatrix,PI/2,[1,0,0]);
+//	mat4.rotate(mvMatrix,rTri,[0,-1,0]);
+	
+	
+ //       gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+ //       gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+	
+	//gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer);
+     //   gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, triangleVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+	
+      //  setMatrixUniforms();
+      //  gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);
+	
+	//mat4.translate(mvMatrix, [-0.5, -RT3/2, 1/2/RT3]);
+       // setMatrixUniforms();
+       // gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);	
+
+	//mat4.translate(mvMatrix, [1.0, 0.0, 0.0]);
+       // setMatrixUniforms();
+       // gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);
+		
+	//mat4.translate(mvMatrix, [-0.5, 0.0, -RT3/2]);
+       // setMatrixUniforms();
+      //  gl.drawArrays(gl.TRIANGLE_STRIP, 0, triangleVertexPositionBuffer.numItems);	
+	
+	mvPopMatrix();
+	<!-- default frame -->
+	
+	<!-- P's origin -->
+	mvPushMatrix();
+	
+        mat4.rotate(mvMatrix,rSquare,[0,1,0]);
+	mat4.translate(mvMatrix, [-0.5, 0.0, 0.0]);
+	<!-- rotated P frame -->
+
+         <!-- faces, front-->
+        gl.bindBuffer(gl.ARRAY_BUFFER, peteVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, peteVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, peteVertexTextureCoordBuffer);
+        gl.vertexAttribPointer(shaderProgram.TextureCoordAttribute, peteVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+	
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, EveTexture);
+        gl.uniform1i(shaderProgram.samplerUniform, 0);
+	
+	
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, peteVertexIndexBuffer);
+	setMatrixUniforms();
+        gl.drawElements(gl.TRIANGLES,peteVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+	mvPopMatrix();
+	
+	
+	
+    }
+
+function tick()
+{
+ requestAnimFrame(tick);
+ drawScene();
+animate();
+ 
+}
+
+
+<!-- this is the function called by the page, on load -->
+    function webGLStart() {
+        var canvas = document.getElementById("shape_can");
+        initGL(canvas);
+        initShaders();
+	initTexture();
+        initBuffers();
+
+        gl.clearColor(0.0, 0.0, 0.2, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+	
+        tick();
+	
+    }
+
+
+
+
+</script>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+    shapes!
+    <br />
+    <canvas id="shape_can" style="border: none;" width="500" height="500"></canvas>
+
+    <br/>
+    shapes?
+    <a href="pete_colour.html">coloured shapes</a>
+    <a href="pete_anim.html">moving shapes</a>
+    <a href="pete_texture.html">texture mapping</a>
+</body>
+
+</html>

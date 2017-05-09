@@ -1,0 +1,906 @@
+<html>
+
+<head>
+<title>Pete's WebGL cube </title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="glMatrix-0.9.5.min.js"></script>
+<!--<script type="text/javascript" src="gl-matrix-min.js"></script>-->
+<script type="text/javascript" src="webgl-utils.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+
+
+    varying vec4 vColor;
+
+    void main(void) {
+        gl_FragColor = vColor;
+    }
+   
+
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
+    varying vec4 vColor;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+	vColor = aVertexColor;
+    }
+</script>
+
+
+<script type="text/javascript">
+var PI = 3.141592653;
+var RT2=1.414;
+var RT3 = 1.73;
+var RT5 = 2.23607;
+var RED = [1,0,0,1];
+var BLUE = [0,0,1,1];
+var GREEN = [0.1,0.7,0.1,1];
+var ORANGE =[1.0,0.6,0.0,1.0];
+var YELLOW = [0.8,0.8,0.0,1.0];
+var WHITE = [1,1,1,1];
+var TheseColours = [ BLUE, RED, WHITE,  ORANGE, GREEN, YELLOW ]; 
+
+<!-- Piece class - describes pieces of the cube -->
+function Piece (){
+
+this.vertices = new Array();
+this.numVertices =0;
+this.items = 0;
+this.positions = new Array(new Array());
+this.rotations = new Array(new Array());
+this.colours = new Array(new Array());
+this.indices = [];
+this.posBuffer =0;
+this.colourBuffers = [];
+this.indexBuffer =0;
+this.numIndices = 0;
+this.currentPositions = new Array(new Array());//current cartesian coordinates of the piece (after twisting slices)
+this.currentRotations = new Array(new Array()); //additional rotation, after twisting slices
+this.finalPositions = new Array(new Array()); // track the final position and rotation - compute these in one operation, rather than compounding thousands of animation steps
+this.finalRotations = new Array(new Array());
+
+};
+
+//Piece.prototype.test = function(){ alert("centres contains "+this.items+" items");};
+//Piece.prototype.test2 = function(){ alert("centres posbuffer  "+this.posBuffer.numItems+" items");};
+
+<!-- Generate Buffers -->
+Piece.prototype.GenerateBuffers = function() {
+
+// generate a position buffer (just one, because we will be moving to the position/orinetation of the piece and then drawing)
+
+// this should not be called until after vertices/colours have been set
+
+this.posBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
+this.posBuffer.itemSize = 3;
+this.posBuffer.numItems = this.numVertices;
+
+// element array buffer here
+
+this.indexBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.indexBuffer);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(this.indices), gl.STATIC_DRAW);
+this.indexBuffer.itemSize =1;
+this.indexBuffer.numItems= this.numIndices;
+
+//alert("Generating Buffers");
+// colour buffers
+//generate colour buffers, one for each face, using info in this.colours.
+for (var i=0; i < this.items; i++) 
+	{
+	this.colourBuffers[i] = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.colourBuffers[i]);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.colours[i]), gl.STATIC_DRAW);
+	this.colourBuffers[i].itemSize =4;
+	this.colourBuffers[i].numItems =this.numvertices;
+	}
+};
+
+
+Piece.prototype.Draw = function() {
+// for each face
+
+// push the mv matrix
+// move to the position
+// rotate 
+// set the position atriute to the relevant position buffer
+// set the attribute pointer to the relevant colour buffer
+// draw the element array
+
+
+
+
+
+//alert("Drawing Buffers");
+
+for (var i=0 ; i< this.items ; i++) //this.items
+{
+
+	mvPushMatrix();
+	//translate then rotate then draw;
+	
+	mat4.rotate(mvMatrix,this.currentRotations[i][3],this.currentRotations[i].slice(0,3));
+	mat4.translate(mvMatrix,this.positions[i]);
+	mat4.rotate(mvMatrix,this.rotations[i][3],this.rotations[i].slice(0,3));
+	//mat4.rotate(mvMatrix,this.currentRotations[i][3],this.currentRotations[i].slice(0,3));
+	
+	//mat4.rotate(mvMatrix,this.rotations[i][0],[1,0,0]);
+	//mat4.rotate(mvMatrix,this.rotations[i][1],[0,1,0]);
+	//mat4.rotate(mvMatrix,this.rotations[i][2],[0,0,1]);
+	//mat4.translate(mvMatrix,this.positions[i]);
+	
+	//draw something
+	
+//	var triangle = 
+//	[-1,0,0,
+//	1,0,0,
+//	0,1.73,0];
+//	var triColour = [1,0,0,1,0,1,0,1,0,0,1,1];
+///	var triArray = gl.createBuffer();
+//	var triArrayC = gl.createBuffer();
+//	gl.bindBuffer(gl.ARRAY_BUFFER, triArray);
+//	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle),gl.STATIC_DRAW);
+//	gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+//	gl.bindBuffer(gl.ARRAY_BUFFER, triArrayC);
+//	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triColour),gl.STATIC_DRAW);
+//	gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+//	setMatrixUniforms();
+//	gl.drawArrays(gl.TRIANGLES, 0, 3);
+//	// end triangle
+
+// position buffer
+gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
+gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, this.posBuffer.itemSize, gl.FLOAT, false, 0, 0);	
+	
+	
+	// moved to the position for this face, now draw it;
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.colourBuffers[i]);
+	gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, this.colourBuffers[i].itemSize, gl.FLOAT, false, 0, 0);
+	
+	//element array buffer
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+	setMatrixUniforms();
+	gl.drawElements(gl.TRIANGLES,this.numIndices, gl.UNSIGNED_SHORT, 0);
+	mvPopMatrix();
+}
+
+
+
+
+
+}
+
+Piece.prototype.roundPositions = function(i){
+
+
+
+// round positions to +/- 1; (or zero)
+for (var ci = 0; ci < 3 ; ci++)
+{
+this.currentPositions[i][ci] = Math.round(this.currentPositions[i][ci] );
+//Math.round(pos);
+//piece.currentPositions[i][ci] =pos;
+} 
+var theangle =this.currentRotations[i][3] ;
+theangle /= PI/4;
+Math.round(theangle);
+//this.currentRotations[i][3] = theangle*PI/4;
+
+
+
+
+
+
+}
+
+
+
+
+<!-- end of the Piece functino-->
+
+<!-- sort out the canvas for webgl-->
+var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) { 
+	alert("some sort of error with webgl");
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL - should work in chrome or firefox");
+        }
+    }
+
+
+<!-- push and pop - mvMatrix stack -->
+ var mvMatrix = mat4.create();
+  var mvMatrixStack = [];
+  var pMatrix = mat4.create();
+
+  function mvPushMatrix() {
+    var copy = mat4.create();
+    mat4.set(mvMatrix, copy);
+    mvMatrixStack.push(copy);
+  }
+
+  function mvPopMatrix() {
+    if (mvMatrixStack.length == 0) {
+      throw "Invalid popMatrix!";
+    }
+    mvMatrix = mvMatrixStack.pop();
+  }
+
+
+
+
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+
+<!-- shader stuff -->
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+
+<!-- firt thing called by WebGLstart - sorts out the shaders -->
+var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+    
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    }
+
+<!-- describe the cube - centres first -->
+
+var centres = new Piece();
+
+function initCentres(){
+<!--
+this.vertices = [];
+this.numVertices =0;
+this.items = 0;
+this.positions = [];
+this.rotations = [];
+//this.colours = [];
+this.indices = [];
+this.posBuffer =0;
+this.colourBuffers = [];
+this.indexBuffer =0;
+this.numIndices = 0;
+-->
+
+centres.vertices = [
+		    -0.47, 0.47, 0.5,
+		    0.47, 0.47, 0.5,
+		    0.47, -0.47,0.5,
+		    -0.47,-0.47,0.5
+		    ];
+centres.numVertices = 4;
+centres.items = 6;
+centres.positions = [ [0,0,1],[0,1,0],[1,0,0],[0,0,-1],[0,-1,0],[-1,0,0]];
+centres.rotations = [ [1,0,0,0],[1,0,0,-PI/2],[0,1,0,PI/2], [0,1,0,PI],[1,0,0,PI/2],[0,1,0,-PI/2]];
+centres.currentRotations = [[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]];
+centres.currentPositions = [ [0,0,1],[0,1,0],[1,0,0],[0,0,-1],[0,-1,0],[-1,0,0]];
+centres.finalRotations = [[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]];
+centres.finaltPositions = [ [0,0,1],[0,1,0],[1,0,0],[0,0,-1],[0,-1,0],[-1,0,0]];
+
+//colours
+
+
+
+centres.colours[0] = BLUE.concat(BLUE,BLUE,BLUE);
+centres.colours[1] = RED.concat(RED,RED,RED);
+centres.colours[2] = WHITE.concat(WHITE,WHITE,WHITE);
+centres.colours[3] = ORANGE.concat(ORANGE,ORANGE,ORANGE);
+centres.colours[4] = GREEN.concat(GREEN,GREEN,GREEN);
+centres.colours[5] = YELLOW.concat(YELLOW,YELLOW,YELLOW);
+
+centres.indices = [0,1,2,0,2,3];
+centres.numIndices = 6;
+centres.GenerateBuffers();
+
+
+
+};
+
+
+var edges = new Piece();
+
+function initEdges(){
+
+//define edge in z-y
+edges.vertices = [
+
+	-0.47,  0.5,  0.5,
+	 0.47,  0.5,  0.5,
+	 0.47, -0.47, 0.5,
+	-0.47, -0.47, 0.5,
+
+	
+	-0.47, 0.5,  0.5,
+	 0.47, 0.5,  0.5,
+	 0.47, 0.5, -0.47,
+	-0.47, 0.5, -0.47
+	];
+	
+edges.numVertices = 8;
+edges.items = 12; // do the top first, blue on top, red,green,yellow,orange
+edges.positions = 	[
+			[1,1,0],[-1,1,0],[0,1,1],[0,1,-1], //top
+			[-1,0,1],[1,0,1],[-1,0,-1],[1,0,-1], //mid
+			[1,-1,0],[-1,-1,0],[0,-1,1],[0,-1,-1]
+			];
+edges.rotations = 	[
+			[0,1,0,PI/2],[0,1,0,-PI/2],[1,0,0,0],[0,1,0,PI],
+			[0,0,1,PI/2],[0,0,1,-PI/2],[-1/RT2,1/RT2,0,PI],[1/RT2,1/RT2,0,PI],
+			[1/RT2,0,1/RT2,PI],[-1/RT2,0,1/RT2,PI],[0,0,1,PI],[-1,0,0,PI]
+];
+edges.currentPositions = 	[
+			[1,1,0],[-1,1,0],[0,1,1],[0,1,-1], //top
+			[-1,0,1],[1,0,1],[-1,0,-1],[1,0,-1], //mid
+			[1,-1,0],[-1,-1,0],[0,-1,1],[0,-1,-1]
+			];
+edges.currentRotations = 	[
+			[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]
+];
+edges.finalPositions = 	[
+			[1,1,0],[-1,1,0],[0,1,1],[0,1,-1], //top
+			[-1,0,1],[1,0,1],[-1,0,-1],[1,0,-1], //mid
+			[1,-1,0],[-1,-1,0],[0,-1,1],[0,-1,-1]
+			];
+edges.finalRotations = 	[
+			[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0],[1,0,0,0]
+];
+
+
+
+
+edges.colours[0] = WHITE.concat(WHITE,WHITE,WHITE,RED,RED,RED,RED);
+edges.colours[1] = YELLOW.concat(YELLOW,YELLOW,YELLOW,RED,RED,RED,RED);
+edges.colours[2] = BLUE.concat(BLUE,BLUE,BLUE,RED,RED,RED,RED);
+edges.colours[3] = ORANGE.concat(ORANGE,ORANGE,ORANGE,RED,RED,RED,RED);
+
+edges.colours[4] = BLUE.concat(BLUE,BLUE,BLUE,YELLOW,YELLOW,YELLOW,YELLOW);
+edges.colours[5] = BLUE.concat(BLUE,BLUE,BLUE,WHITE,WHITE,WHITE,WHITE);
+edges.colours[6] = ORANGE.concat(ORANGE,ORANGE,ORANGE,YELLOW,YELLOW,YELLOW,YELLOW);
+edges.colours[7] = ORANGE.concat(ORANGE,ORANGE,ORANGE,WHITE,WHITE,WHITE,WHITE);
+
+edges.colours[8] = WHITE.concat(WHITE,WHITE,WHITE,GREEN,GREEN,GREEN,GREEN);
+edges.colours[9] = YELLOW.concat(YELLOW,YELLOW,YELLOW,GREEN,GREEN,GREEN,GREEN);
+edges.colours[10] = BLUE.concat(BLUE,BLUE,BLUE,GREEN,GREEN,GREEN,GREEN);
+edges.colours[11] = ORANGE.concat(ORANGE,ORANGE,ORANGE,GREEN,GREEN,GREEN,GREEN);
+
+edges.indices = [0,1,2,0,2,3,4,5,6,4,6,7];
+edges.numIndices = 12;
+edges.GenerateBuffers();
+	
+	
+};	
+
+var corners = new Piece();
+
+function initCorners()
+{
+//define the (1,1,1) corner by default
+corners.vertices = [
+		//front face - x-y
+		-0.47,0.5,0.5,
+		0.5,0.5,0.5,
+		0.5,-0.47,0.5,
+		-0.47,-0.47,0.5,
+		// top face - in the x-z plane
+		-0.47,0.5,0.5,
+		0.5,0.5,0.5,
+		0.5,0.5,-0.47,
+		-0.47,0.5,-0.47,
+		//side face - y-z
+		0.5,-0.47,0.5,
+		0.5,0.5,0.5,
+		0.5,0.5,-0.47,
+		0.5,-0.47,-0.47
+];
+corners.items=8;
+corners.numVertices=12;
+corners.positions = 
+		[
+		[1,1,1],[-1,1,1],[-1,1,-1],[1,1,-1], //top
+		[1,-1,1],[-1,-1,1],[-1,-1,-1],[1,-1,-1]
+		];
+corners.rotations =
+		[
+		[1,0,0,0], [0,1,0,-PI/2],[0,1,0,PI],[0,1,0,PI/2],
+		[1,0,0,PI/2], [0,0,1,PI],[1/RT2,0,-1/RT2,PI],[1,0,0,PI]
+		];
+
+corners.currentPositions = 
+[
+		[1,1,1],[-1,1,1],[-1,1,-1],[1,1,-1], //top
+		[1,-1,1],[-1,-1,1],[-1,-1,-1],[1,-1,-1]
+		];
+corners.currentRotations =
+		[
+		[1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0]
+		];		
+corners.finalPositions = 
+[
+		[1,1,1],[-1,1,1],[-1,1,-1],[1,1,-1], //top
+		[1,-1,1],[-1,-1,1],[-1,-1,-1],[1,-1,-1]
+		];
+corners.finalRotations =
+		[
+		[1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0], [1,0,0,0]
+		];
+		
+		
+corners.colours[0] = BLUE.concat(BLUE,BLUE,BLUE,RED,RED,RED,RED,WHITE,WHITE,WHITE,WHITE);
+corners.colours[1] = YELLOW.concat(YELLOW,YELLOW,YELLOW,RED,RED,RED,RED,BLUE,BLUE,BLUE,BLUE);
+corners.colours[2] = ORANGE.concat(ORANGE,ORANGE,ORANGE,RED,RED,RED,RED,YELLOW,YELLOW,YELLOW,YELLOW);
+corners.colours[3] = WHITE.concat(WHITE,WHITE,WHITE,RED,RED,RED,RED,ORANGE,ORANGE,ORANGE,ORANGE);
+corners.colours[4] = GREEN.concat(GREEN,GREEN,GREEN,BLUE,BLUE,BLUE,BLUE,WHITE,WHITE,WHITE,WHITE);
+corners.colours[5] = BLUE.concat(BLUE,BLUE,BLUE,GREEN,GREEN,GREEN,GREEN,YELLOW,YELLOW,YELLOW,YELLOW);
+corners.colours[6] = YELLOW.concat(YELLOW,YELLOW,YELLOW,GREEN,GREEN,GREEN,GREEN,ORANGE,ORANGE,ORANGE,ORANGE);
+corners.colours[7] = ORANGE.concat(ORANGE,ORANGE,ORANGE,GREEN,GREEN,GREEN,GREEN,WHITE,WHITE,WHITE,WHITE);
+corners.indices = [0,1,2,0,2,3,4,5,6,4,6,7,8,9,10,8,10,11];
+corners.numIndices = 18;
+corners.GenerateBuffers();
+
+
+}
+<!-- handle keyboard input -->
+
+function doKeyDown(event)
+{
+//alert("keycode is "+event.keyCode);
+//front z face - a,d : 65/68
+//top y face - q,e: 81/69
+//bottom y face z,c 90/67
+
+
+//left x face up t 84
+//right x face upy 89
+//left x face down g 71
+//right x face down h 72
+
+
+if (event.keyCode == 65) rotateZ(1,PI/2);
+if (event.keyCode == 68) rotateZ(1,-PI/2);
+if (event.keyCode == 81) rotateY(1,-PI/2);
+if (event.keyCode == 69) rotateY(1,PI/2);
+if (event.keyCode == 90) rotateY(-1,-PI/2);
+if (event.keyCode == 67) rotateY(-1,PI/2);
+if (event.keyCode == 89) rotateX(1,-PI/2);
+if (event.keyCode == 72) rotateX(1,PI/2);
+if (event.keyCode == 84) rotateX(-1,-PI/2);
+if (event.keyCode == 71) rotateX(-1,PI/2);
+
+}
+
+function doKeyUp(event){};
+
+
+<!-- Slice Rotations -->
+
+var angle = 0;
+var axis = [1,0,0];
+var SpinningCentres=[];
+var SpinningEdges = [];
+var SpinningCorners = [];
+
+
+function rotateX(slice,theangle)
+{
+if (angle !=0) return;
+
+angle = theangle;
+axis = [1,0,0];
+if (theangle <0) {angle*= -1 ; axis = [-1,0,0];};
+// add pieces to a list
+//alert("spinning X!");
+var delta = 0.1;
+for (var i=0 ; i< corners.items ; i++)
+{
+	if ((corners.currentPositions[i][0] > (slice - delta)) & (corners.currentPositions[i][0] < (slice + delta))) 
+	{
+		SpinningCorners.push(i);
+		corners.finalPositions[i] = rotatePosition(corners.currentPositions[i],angle);
+		corners.finalRotations[i] = addRotation(corners.currentRotations[i],angle);
+		
+	};
+}
+for (var i=0 ; i< edges.items ; i++)
+{
+	if ((edges.currentPositions[i][0] > (slice -delta)) & (edges.currentPositions[i][0] < (slice +delta))) 
+	{
+		SpinningEdges.push(i);
+		edges.finalPositions[i] = rotatePosition(edges.currentPositions[i],angle);
+		edges.finalRotations[i] = addRotation(edges.currentRotations[i],angle);
+	}
+}
+for (var i=0 ; i< centres.items ; i++)
+{
+
+	if ((centres.currentPositions[i][0] > (slice -delta) )& (centres.currentPositions[i][0] < (slice +delta))) 
+	{
+		SpinningCentres.push(i);
+		centres.finalPositions[i] = rotatePosition(centres.currentPositions[i],angle);
+		centres.finalRotations[i] = addRotation(centres.currentRotations[i],angle);
+		
+	}
+}
+
+
+}
+function rotateY(slice,theangle)
+{
+if (angle !=0) return;
+
+
+angle = theangle;
+axis = [0,1,0];
+if (theangle <0) {angle*= -1 ; axis = [0,-1,0];};
+
+var delta = 0.1;
+for (var i=0 ; i< corners.items ; i++)
+{
+	if ((corners.currentPositions[i][1] > (slice - delta)) & (corners.currentPositions[i][1] < (slice + delta))) 
+	{
+		SpinningCorners.push(i);
+		corners.finalPositions[i] = rotatePosition(corners.currentPositions[i],angle);
+		corners.finalRotations[i] = addRotation(corners.currentRotations[i],angle);
+	}
+}
+for (var i=0 ; i< edges.items ; i++)
+{
+	if ((edges.currentPositions[i][1] > (slice -delta)) & (edges.currentPositions[i][1] < (slice +delta))) 
+	{
+		SpinningEdges.push(i);
+		edges.finalPositions[i] = rotatePosition(edges.currentPositions[i],angle);
+		edges.finalRotations[i] = addRotation(edges.currentRotations[i],angle);
+	}
+}
+for (var i=0 ; i< centres.items ; i++)
+{
+	if ((centres.currentPositions[i][1] > (slice -delta) )& (centres.currentPositions[i][1] < (slice +delta))) 
+	{
+		SpinningCentres.push(i);
+		centres.finalPositions[i] = rotatePosition(centres.currentPositions[i],angle);
+		centres.finalRotations[i] = addRotation(centres.currentRotations[i],angle);
+	}
+
+
+}
+
+
+}
+
+function rotateZ(slice,theangle)
+{
+if (angle !=0) return;
+
+angle = theangle;
+axis = [0,0,1];
+if (theangle <0) {angle*= -1 ; axis = [0,0,-1];};
+// add pieces to a list
+
+var delta = 0.1;
+for (var i=0 ; i< corners.items ; i++)
+{
+	if ((corners.currentPositions[i][2] > (slice - delta)) & (corners.currentPositions[i][2] < (slice + delta))) 
+	{
+		SpinningCorners.push(i);
+		corners.finalPositions[i] = rotatePosition(corners.currentPositions[i],angle);
+		corners.finalRotations[i] = addRotation(corners.currentRotations[i],angle);
+	}
+}
+for (var i=0 ; i< edges.items ; i++)
+{
+	if ((edges.currentPositions[i][2] > (slice -delta)) & (edges.currentPositions[i][2] < (slice +delta))) 
+	{
+		SpinningEdges.push(i);
+		edges.finalPositions[i] = rotatePosition(edges.currentPositions[i],angle);
+		edges.finalRotations[i] = addRotation(edges.currentRotations[i],angle);
+	}
+}
+for (var i=0 ; i< centres.items ; i++)
+{
+	if ((centres.currentPositions[i][2] > (slice -delta) )& (centres.currentPositions[i][2] < (slice +delta))) 
+	{
+		SpinningCentres.push(i);
+		centres.finalPositions[i] = rotatePosition(centres.currentPositions[i],angle);
+		centres.finalRotations[i] = addRotation(centres.currentRotations[i],angle);
+	}
+}
+
+
+}
+
+
+ <!-- Animate the scene -->
+var rCube = 0;//-PI/4;
+var lastTime = 0;
+
+function animate() 
+{
+var omega = PI/2/1000;
+var timeNow = new Date().getTime();
+
+if (lastTime != 0)
+{
+
+	var elapsed = timeNow - lastTime;
+	// rotate slices
+	if (angle >0)
+	{
+		var increment = elapsed*omega;
+		angle -= increment;
+		//centres
+		for (var i=0 ; i< SpinningCentres.length ; i++)
+		{
+			centres.currentRotations[SpinningCentres[i]] = addRotation(centres.currentRotations[SpinningCentres[i]],increment);
+			centres.currentPositions[SpinningCentres[i]] = rotatePosition(centres.currentPositions[SpinningCentres[i]],increment);
+		}
+		for (var i=0 ; i< SpinningEdges.length ; i++)
+		{
+			edges.currentRotations[SpinningEdges[i]] = addRotation(edges.currentRotations[SpinningEdges[i]],increment);
+			edges.currentPositions[SpinningEdges[i]] = rotatePosition(edges.currentPositions[SpinningEdges[i]],increment);
+		}
+		for (var i=0 ; i< SpinningCorners.length ; i++)
+		{
+			corners.currentRotations[SpinningCorners[i]] = addRotation(corners.currentRotations[SpinningCorners[i]],increment);
+			corners.currentPositions[SpinningCorners[i]] = rotatePosition(corners.currentPositions[SpinningCorners[i]],increment);
+		}
+      }
+      if (angle <0)
+      {
+      //overspun by a bit, back up - go to final positions
+      increment = angle*-1;
+      
+      for (var i=0 ; i< SpinningCentres.length ; i++)
+		{
+			centres.currentRotations[SpinningCentres[i]] = centres.finalRotations[SpinningCentres[i]];
+			centres.currentPositions[SpinningCentres[i]] = centres.finalPositions[SpinningCentres[i]];
+			//centres.roundPositions(i);
+		}
+		for (var i=0 ; i< SpinningEdges.length ; i++)
+		{
+			edges.currentRotations[SpinningEdges[i]] = edges.finalRotations[SpinningEdges[i]]
+			edges.currentPositions[SpinningEdges[i]] = edges.finalPositions[SpinningEdges[i]]
+			//edges.roundPositions(i);
+		}
+		for (var i=0 ; i< SpinningCorners.length ; i++)
+		{
+			corners.currentRotations[SpinningCorners[i]] = corners.finalRotations[SpinningCorners[i]]
+			corners.currentPositions[SpinningCorners[i]] = corners.finalPositions[SpinningCorners[i]]
+			//corners.roundPositions(i);
+			
+		}
+		angle =0;
+		SpinningCorners = [];
+		SpinningEdges = [];
+		SpinningCentres = [];
+      }
+
+      //rCube += (PI/5* elapsed) / 1000.0;
+      
+      if (rCube > 2*PI ) {rCube -= 2*PI;};
+}
+lastTime = timeNow;
+} 
+
+
+
+ 
+ 
+  
+
+function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+
+        mat4.identity(mvMatrix);
+	
+	mat4.translate(mvMatrix, [0, 0.0, -10.0]);
+	
+	
+	
+	
+ 	
+        
+	<!-- this is our default viewpoint-->
+	mvPushMatrix();
+	<!-- rotated frame of the Cube -->
+	mat4.rotate(mvMatrix,rCube,[0,1,0]);
+	
+	centres.Draw();
+	edges.Draw();
+	corners.Draw();
+	mvPopMatrix();
+
+
+	
+	
+	
+    }
+
+function addRotation(rotation,increment)
+{
+
+
+
+// add increment about axis to rotation and return the result
+
+var result = [0,0,0,0];
+
+
+
+var q1 = quat4.create([Math.sin(rotation[3]/2)*rotation[0],Math.sin(rotation[3]/2)*rotation[1],Math.sin(rotation[3]/2)*rotation[2],Math.cos(rotation[3]/2)]);
+
+
+var q2 =quat4.create( [Math.sin(increment/2)*axis[0],Math.sin(increment/2)*axis[1],Math.sin(increment/2)*axis[2],Math.cos(increment/2)]);
+
+
+//multiply them
+// q3 = q2*q1
+var q3 = [0,0,0,0];
+quat4.multiply(q2,q1,q3);
+
+	 
+	  
+result[3] = 2*Math.acos(q3[3]);
+var norm = Math.sin(result[3]/2);
+result[0] = q3[0]/norm;
+result[1] = q3[1]/norm;
+result[2] = q3[2]/norm;
+
+return result;
+
+
+}
+
+function rotatePosition(position,increment)
+{
+// rotate position about axis by amount increment.
+ var q1 = quat4.create([ Math.sin(increment/2)*axis[0],Math.sin(increment/2)*axis[1],Math.sin(increment/2)*axis[2],Math.cos(increment/2)]);
+ var q1t = quat4.create([-q1[0],-q1[1],-q1[2],q1[3]]);
+//rotated = q1*position*q1
+var qp = quat4.create([position[0],position[1],position[2],0]);
+
+var q3 = quat4.create([0,0,0,0]);
+quat4.multiply(q1,qp,q3);
+quat4.multiply(q3,q1t,q1);
+	  
+
+
+
+return [q1[0],q1[1],q1[2]];
+
+}
+
+
+
+
+function tick()
+{
+ requestAnimFrame(tick);
+ drawScene();
+animate();
+ 
+}
+
+
+function webGLStart() {
+        var canvas = document.getElementById("shape_can");
+        initGL(canvas);
+        initShaders();
+        initCentres();
+	initEdges();
+	initCorners();
+	//centres.test();
+	//centres.test2();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+	
+	document.onkeydown = doKeyDown;
+	document.onkeyup = doKeyUp;
+	
+        tick();
+	
+    }
+
+</script>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+    Pete's WebGL Rubik's cube!
+    <br />
+    <canvas id="shape_can" style="border: none;" width="500" height="500"></canvas>
+
+    <br/>
+    <br>
+    rotate front face anticlockwise/clockwise: A/D<br>
+    rotate top face to the left/right: Q/E<br>
+    rotate bottom face to the left/right: Z/C<br>
+    rotate left face up/down: T/G<br>
+    rotate right face up/down: Y/H<br>
+
+
+    <br>
+    <a href="../pete_colour.html">coloured shapes</a>
+    <a href="../pete_anim.html">moving shapes</a>
+    <a href="../pete_texture.html">texture mapping</a>
+</body>
+
+</html>
